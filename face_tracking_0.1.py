@@ -14,6 +14,9 @@ cap.set(cv.CAP_PROP_FRAME_WIDTH, 1280)
 face_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_frontalface_default.xml')
 eye_cascade = cv.CascadeClassifier(cv.data.haarcascades + 'haarcascade_eye.xml')
 
+presets = [0,1,2,3]
+preset = presets[0]
+
 def colour_value_maker(b,g,r):
     return np.array([b,g,r])
 
@@ -22,6 +25,9 @@ def colour_extract(original_image, edited_image, lower_value, upper_value):
     result = cv.bitwise_and(original_image, original_image, mask=mask)
 
     return result
+
+def key_input(character):
+    return cv.waitKey(1) == ord(str(character))
 
 
 while True:
@@ -34,32 +40,29 @@ while True:
     white = colour_value_maker(255,255,255)
     black = colour_value_maker(0, 0, 0)
 
-    YCrCb = cv.cvtColor(frame, cv.COLOR_BGR2YCrCb)
-    lower_YCrCb_skin_tone = colour_value_maker(5, 90, 90)
-    upper_YCrCb_skin_tone = colour_value_maker(175,165,155)
-    result = colour_extract(frame,YCrCb, lower_YCrCb_skin_tone, upper_YCrCb_skin_tone)  
-
-    bgr = result.copy()
-    upper_brg_skin_tone = colour_value_maker(155, 168, 185)
-    result = colour_extract(bgr,result, black, upper_brg_skin_tone)
-
-    hsv = cv.cvtColor(result, cv.COLOR_BGR2HSV)
-    lower_hsv_skin_tone = colour_value_maker(0,18,13)
-    upper_hsv_skin_tone = colour_value_maker(170,180,170)
-    result = colour_extract(result, hsv, lower_hsv_skin_tone, upper_hsv_skin_tone)
+    lower_bgr_skin_tone = colour_value_maker(3,3,3)
+    upper_bgr_skin_tone = colour_value_maker(150, 150, 165)
+    bgr_result = colour_extract(frame,frame, lower_bgr_skin_tone, upper_bgr_skin_tone)
 
     # face detection
-    gray = cv.cvtColor(result, cv.COLOR_BGR2GRAY)
-    scale_factor = 1.03
-    minimum_neighbours = 5
+    gray = cv.cvtColor(bgr_result, cv.COLOR_BGR2GRAY)
+    clahe = cv.createCLAHE(
+        clipLimit=40,
+        tileGridSize=(8,8)
+    )
+    clahe_img = clahe.apply(gray)
 
-    faces = face_cascade.detectMultiScale(
-        gray,
-        scaleFactor= scale_factor,
-        minNeighbors= minimum_neighbours
+    face_positions = face_cascade.detectMultiScale(
+        clahe_img,
+        scaleFactor= 1.175,
+        minNeighbors= 8
         )
-    
-    cv.imshow('face tracking', result)
+
+    # setting up positioning of face
+    for (x1,y1, x2,y2) in face_positions:
+        cv.rectangle(img, (x1,y1), (x1+x2, y1+y2), (255,255,255), 1)
+
+    cv.imshow('face tracking', img)
 
     # q key will stop app
     if cv.waitKey(1) == ord('q'):
